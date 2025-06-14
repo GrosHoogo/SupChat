@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import styled from 'styled-components';
-import { fetchMockMessages, sendMockMessage, reactToMockMessage } from '../mocks/mockChatApi';
-import { FaSmile } from 'react-icons/fa';
+import axios from 'axios';
+import socket from '../api/socket';
 
+// Styled Components
 const ChatContainer = styled.div`
   flex: 1;
   display: flex;
@@ -10,6 +11,73 @@ const ChatContainer = styled.div`
   background-color: ${({ darkMode }) => (darkMode ? '#35384A' : 'white')};
   color: ${({ darkMode }) => (darkMode ? '#ddd' : '#222')};
   padding: 1rem;
+`;
+
+const Header = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  position: relative;
+`;
+
+const ButtonsGroup = styled.div`
+  display: flex;
+  gap: 0.5rem;
+`;
+
+const ChannelName = styled.h3`
+  font-size: 1.1rem;
+  opacity: 0.8;
+`;
+
+const EditButton = styled.button`
+  background: none;
+  border: none;
+  color: ${({ darkMode }) => (darkMode ? '#ddd' : '#222')};
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 1.1rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+
+  &:hover {
+    background-color: ${({ darkMode }) => (darkMode ? '#4e548b' : '#d0d8ff')};
+  }
+`;
+
+const UpdateForm = styled.form`
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: ${({ darkMode }) => (darkMode ? '#3a3e54' : 'white')};
+  border: 1px solid ${({ darkMode }) => (darkMode ? '#555' : '#ccc')};
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 0.3rem;
+  z-index: 10;
+  width: 240px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+`;
+
+const Input = styled.input`
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  border: 1px solid ${({ darkMode }) => (darkMode ? '#555' : '#ccc')};
+  background-color: ${({ darkMode }) => (darkMode ? '#3a3e54' : 'white')};
+  color: ${({ darkMode }) => (darkMode ? '#ddd' : '#222')};
+  font-size: 0.9rem;
+`;
+
+const CheckboxLabel = styled.label`
+  font-size: 0.9rem;
+  color: ${({ darkMode }) => (darkMode ? '#ddd' : '#222')};
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
 `;
 
 const MessagesArea = styled.div`
@@ -28,11 +96,6 @@ const MessageWrapper = styled.div`
   display: flex;
   flex-direction: column;
   align-items: ${({ isCurrentUser }) => (isCurrentUser ? 'flex-end' : 'flex-start')};
-  position: relative;
-
-  &:hover .reaction-icon {
-    opacity: 1;
-  }
 `;
 
 const UserName = styled.span`
@@ -50,55 +113,7 @@ const MessageBubble = styled.div`
   color: ${({ darkMode }) => (darkMode ? '#fff' : '#111')};
   padding: 0.6rem 0.9rem;
   border-radius: 12px;
-  position: relative;
-`;
-
-const Reactions = styled.div`
-  margin-top: 0.3rem;
-  display: flex;
-  gap: 0.3rem;
-  font-size: 0.9rem;
-  opacity: 0.8;
-`;
-
-const ReactionButton = styled.button`
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: inherit;
-  font-size: 0.9rem;
-
-  &:hover {
-    opacity: 1;
-  }
-`;
-
-const ReactionTrigger = styled.button`
-  background: none;
-  border: none;
-  position: absolute;
-  right: -25px;
-  top: 0;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-  cursor: pointer;
-  color: ${({ darkMode }) => (darkMode ? '#ccc' : '#444')};
-  font-size: 1rem;
-`;
-
-const ReactionMenu = styled.div`
-  position: absolute;
-  top: -40px;
-  right: ${({ isCurrentUser }) => (isCurrentUser ? '0' : 'auto')};
-  left: ${({ isCurrentUser }) => (isCurrentUser ? 'auto' : '0')};
-  display: flex;
-  gap: 0.3rem;
-  background: ${({ darkMode }) => (darkMode ? '#444' : '#fff')};
-  border: 1px solid ${({ darkMode }) => (darkMode ? '#666' : '#ccc')};
-  padding: 0.3rem 0.4rem;
-  border-radius: 6px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-  z-index: 1;
+  word-break: break-word;
 `;
 
 const InputArea = styled.div`
@@ -129,87 +144,262 @@ const SendButton = styled.button`
   &:hover {
     background-color: ${({ darkMode }) => (darkMode ? '#6a6e94' : '#737aa7')};
   }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 `;
 
-export default function Chat({ darkMode = false }) {
+export default function Chat({ channelId, workspaceId, darkMode = false }) {
   const [messages, setMessages] = useState([]);
-  const [chatMessage, setChatMessage] = useState('');
-  const [showReactionMenu, setShowReactionMenu] = useState(null);
-  const currentUserId = 'user1';
+  const [input, setInput] = useState('');
+  const [currentUser, setCurrentUser] = useState(null);
+  const [channelName, setChannelName] = useState('');
+  const bottomRef = useRef(null);
+  const token = localStorage.getItem('token');
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editIsPrivate, setEditIsPrivate] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
 
   useEffect(() => {
-    fetchMockMessages().then(setMessages);
-  }, []);
+    if (!token) return;
+    axios.get('http://127.0.0.1:8000/auth/me', {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then(res => setCurrentUser(res.data)).catch(() => setCurrentUser(null));
+  }, [token]);
 
-  const handleSendMessage = async () => {
-    const text = chatMessage.trim();
-    if (!text) return;
-    const newMessage = await sendMockMessage(currentUserId, text);
-    setMessages(prev => [...prev, newMessage]);
-    setChatMessage('');
+  useEffect(() => {
+    if (!channelId || !workspaceId || !token) return;
+    axios.get(`http://127.0.0.1:8000/channels/workspace/${workspaceId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(res => {
+        const channels = res.data;
+        const current = channels.find(c => c.id === channelId);
+        setChannelName(current?.name || '');
+        setEditName(current?.name || '');
+      })
+      .catch(() => {
+        setChannelName('');
+        setEditName('');
+      });
+  }, [channelId, workspaceId, token]);
+
+  useEffect(() => {
+    if (!channelId || !token) return;
+    axios.get(`http://127.0.0.1:8000/channels/${channelId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then(res => {
+      const channel = res.data;
+      setEditName(channel.name || '');
+      setEditDescription(channel.description || '');
+      setEditIsPrivate(channel.is_private || false);
+      setIsPinned(channel.is_pinned || false);
+    }).catch(() => {
+      setEditDescription('');
+      setEditIsPrivate(false);
+      setIsPinned(false);
+    });
+  }, [channelId, token]);
+
+  useEffect(() => {
+    if (!channelId || !token) return;
+
+    const fetchMessages = () => {
+      axios
+        .get(`http://127.0.0.1:8000/channels/${channelId}/messages?limit=100&offset=0`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        .then(res => {
+          const sorted = res.data.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+          setMessages(sorted);
+        })
+        .catch(console.error);
+    };
+
+    fetchMessages();
+    const interval = setInterval(fetchMessages, 500);
+    return () => clearInterval(interval);
+  }, [channelId, token]);
+
+  useEffect(() => {
+    if (!channelId || !token) return;
+    socket.auth = { token };
+    socket.connect();
+    socket.emit('join_channel', { channel_id: channelId });
+
+    const onNewMsg = msg => {
+      if (msg.channel_id !== channelId) return;
+      setMessages(prev => {
+        if (prev.find(m => m._id === msg._id)) return prev;
+        return [...prev, msg].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+      });
+    };
+
+    socket.on('new_message', onNewMsg);
+    return () => {
+      socket.off('new_message', onNewMsg);
+      socket.disconnect();
+    };
+  }, [channelId, token]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleSend = async () => {
+    if (!input.trim()) return;
+    try {
+      await axios.post(`http://127.0.0.1:8000/channels/${channelId}/messages`, {
+        content: input,
+        type: 'text',
+      }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setInput('');
+    } catch (error) {
+      console.error(error);
+    }
   };
 
-  const handleReaction = async (msgId, emoji) => {
-    const updatedMessage = await reactToMockMessage(msgId, emoji);
-    setMessages(prev =>
-      prev.map(m => (m.id === msgId ? updatedMessage : m))
-    );
-    setShowReactionMenu(null);
+  const handleEditSubmit = async e => {
+    e.preventDefault();
+    try {
+      await axios.patch(`http://127.0.0.1:8000/channels/${channelId}`, {
+        name: editName,
+        description: editDescription,
+        is_private: editIsPrivate,
+        is_pinned: isPinned,
+      }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setChannelName(editName);
+      setIsEditing(false);
+    } catch (error) {
+      console.error(error);
+    }
   };
 
-  const getUserName = (userId) => userId === 'user1' ? 'Moi' : 'Utilisateur';
+  const handleDeleteChannel = async () => {
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce channel ? Cette action est irréversible.')) {
+      return;
+    }
+    try {
+      await axios.delete(`http://127.0.0.1:8000/channels/${channelId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      alert('Channel supprimé avec succès.');
+      // Ajouter redirection ou autre comportement ici si besoin
+    } catch (error) {
+      console.error(error);
+      alert('Erreur lors de la suppression du channel.');
+    }
+  };
+
+  const currentUserId = currentUser?.id || currentUser?._id || null;
 
   return (
     <ChatContainer darkMode={darkMode}>
-      <h2>Chat / #général</h2>
+      <Header>
+        <ChannelName>{channelName}</ChannelName>
+        <ButtonsGroup>
+          <EditButton darkMode={darkMode} onClick={() => setIsEditing(v => !v)}>
+            ✏️
+          </EditButton>
+          <EditButton
+            darkMode={darkMode}
+            onClick={handleDeleteChannel}
+            style={{ color: 'red' }}
+            title="Supprimer le channel"
+          >
+            🗑️
+          </EditButton>
+        </ButtonsGroup>
+
+        {isEditing && (
+          <UpdateForm darkMode={darkMode} onSubmit={handleEditSubmit}>
+            <label>
+              Nom
+              <Input
+                darkMode={darkMode}
+                type="text"
+                value={editName}
+                onChange={e => setEditName(e.target.value)}
+                required
+              />
+            </label>
+            <label>
+              Description
+              <Input
+                darkMode={darkMode}
+                type="text"
+                value={editDescription}
+                onChange={e => setEditDescription(e.target.value)}
+              />
+            </label>
+            <CheckboxLabel darkMode={darkMode}>
+              <input
+                type="checkbox"
+                checked={editIsPrivate}
+                onChange={e => setEditIsPrivate(e.target.checked)}
+              />
+              Privé
+            </CheckboxLabel>
+            <CheckboxLabel darkMode={darkMode}>
+              <input
+                type="checkbox"
+                checked={isPinned}
+                onChange={e => setIsPinned(e.target.checked)}
+              />
+              Épinglé
+            </CheckboxLabel>
+            <SendButton darkMode={darkMode} type="submit">
+              Enregistrer
+            </SendButton>
+          </UpdateForm>
+        )}
+      </Header>
 
       <MessagesArea darkMode={darkMode}>
-        {messages.length === 0 ? (
-          <p>Aucun message...</p>
-        ) : (
-          messages.map(msg => {
-            const isCurrentUser = msg.userId === currentUserId;
-            return (
-              <MessageWrapper key={msg.id} isCurrentUser={isCurrentUser}>
-                <UserName>{getUserName(msg.userId)}</UserName>
-                <MessageBubble isCurrentUser={isCurrentUser} darkMode={darkMode}>
-                  {msg.text}
-                  {msg.reactions.length > 0 && (
-                    <Reactions>{msg.reactions.join(' ')}</Reactions>
-                  )}
-                  <ReactionTrigger
-                    className="reaction-icon"
-                    darkMode={darkMode}
-                    onClick={() => setShowReactionMenu(prev => prev === msg.id ? null : msg.id)}
-                  >
-                    <FaSmile />
-                  </ReactionTrigger>
-                  {showReactionMenu === msg.id && (
-                    <ReactionMenu darkMode={darkMode} isCurrentUser={isCurrentUser}>
-                      {['👍', '❤️', '😂', '🎉'].map(r => (
-                        <ReactionButton key={r} onClick={() => handleReaction(msg.id, r)}>
-                          {r}
-                        </ReactionButton>
-                      ))}
-                    </ReactionMenu>
-                  )}
-                </MessageBubble>
-              </MessageWrapper>
-            );
-          })
-        )}
+        {messages.map(msg => {
+          const isCurrentUser = currentUserId && String(msg.sender_id) === String(currentUserId);
+          return (
+            <MessageWrapper key={msg._id} isCurrentUser={isCurrentUser}>
+              <UserName>{isCurrentUser ? 'Moi' : 'Utilisateur'}</UserName>
+              <MessageBubble isCurrentUser={isCurrentUser} darkMode={darkMode}>
+                {msg.content}
+              </MessageBubble>
+            </MessageWrapper>
+          );
+        })}
+        <div ref={bottomRef} />
       </MessagesArea>
 
       <InputArea>
         <MessageInput
           darkMode={darkMode}
-          value={chatMessage}
-          onChange={e => setChatMessage(e.target.value)}
           rows={2}
-          placeholder="Tape ton message..."
+          placeholder="Écris un message..."
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              handleSend();
+            }
+          }}
         />
-        <SendButton darkMode={darkMode} onClick={handleSendMessage}>
-          Envoyer
+        <SendButton
+          darkMode={darkMode}
+          onClick={handleSend}
+          disabled={!input.trim()}
+          aria-label="Envoyer le message"
+        >
+          ➤
         </SendButton>
       </InputArea>
     </ChatContainer>

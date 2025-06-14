@@ -1,269 +1,345 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { useSelector } from 'react-redux';
 import styled, { createGlobalStyle } from 'styled-components';
+import Navbar from '../components/Navbar';
+import Chat from '../components/Chat';
 import SettingsModal from '../components/modals/SettingsModal';
 import ProfileModal from '../components/modals/ProfileModal';
 import CreateModal from '../components/modals/CreateModal';
 import InviteModal from '../components/modals/InviteModal';
-import Navbar from '../components/Navbar';
+import MembersModal from '../components/modals/MembersModal';
+import EditWorkspaceModal from '../components/modals/EditWorkspaceModal';
+import CreateChannelModal from '../features/channels/CreateChannelModal';
 import Workspaces from '../components/Workspaces';
-import Chat from '../components/Chat';
 
-// Global styles (pas besoin de déplacer)
+const API_URL = process.env.REACT_APP_API_URL;
+
 const GlobalStyle = createGlobalStyle`
   body {
-    background-color: ${({ darkMode }) => (darkMode ? '#121212' : '#f5f6fa')};
-    color: ${({ darkMode }) => (darkMode ? '#eee' : '#222')};
     margin: 0;
     font-family: Arial, sans-serif;
   }
 `;
 
-const colors = {
-  light: {
-    navbarBg: '#35384A',
-    workspacesBg: '#35384A',
-    chatBg: 'white',
-    text: '#eee',
-    textSecondary: '#ccc',
-    border: '#4a4d6a',
-  },
-  dark: {
-    navbarBg: '#35384A',
-    workspacesBg: '#35384A',
-    chatBg: '#2f3142',
-    text: '#ddd',
-    textSecondary: '#bbb',
-    border: '#4a4d6a',
-  }
-};
-
-const PageWrapper = styled.div`
-  display: flex;
-  height: 100vh;
-  flex-direction: column;
-  background-color: ${({ darkMode, colors }) =>
-    darkMode ? colors.dark.chatBg : colors.light.chatBg};
-  color: ${({ darkMode, colors }) =>
-    darkMode ? colors.dark.text : colors.light.text};
-`;
-
-const NavbarWrapper = styled.div`
-  background-color: ${({ darkMode, colors }) =>
-    darkMode ? colors.dark.navbarBg : colors.light.navbarBg};
-  color: ${({ darkMode, colors }) =>
-    darkMode ? colors.dark.text : colors.light.text};
-  padding: 0.5rem 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-`;
-
-const ContentWrapper = styled.div`
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-`;
-
-const WorkspacesWrapper = styled.div`
-  background-color: ${({ darkMode, colors }) =>
-    darkMode ? colors.dark.workspacesBg : colors.light.workspacesBg};
-  width: 250px;
-  color: ${({ darkMode, colors }) =>
-    darkMode ? colors.dark.text : colors.light.text};
-  border-right: 1px solid ${({ darkMode, colors }) =>
-    darkMode ? colors.dark.border : colors.light.border};
-  overflow-y: auto;
-`;
-
-const ChatWrapper = styled.div`
-  flex: 1;
-  background-color: ${({ darkMode, colors }) =>
-    darkMode ? colors.dark.chatBg : colors.light.chatBg};
-  color: ${({ darkMode, colors }) =>
-    darkMode ? colors.dark.text : colors.light.text};
-  display: flex;
-  flex-direction: column;
-`;
-
 export default function DashboardPage() {
-  const user = useSelector(state => state.auth.user) || { name: 'Alice Dupont', email: 'alice@example.com' };
+  const user = useSelector(state => state.auth.user);
+  const token = localStorage.getItem('token');
 
   const [darkMode, setDarkMode] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-
-  const [workspaces, setWorkspaces] = useState([
-    { id: 1, name: 'Workspace 1', isPublic: true, channels: [{ id: 1, name: 'Général' }, { id: 2, name: 'Random' }] },
-    { id: 2, name: 'Workspace 2', isPublic: false, channels: [{ id: 3, name: 'Salons' }] },
-  ]);
-
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState(workspaces[0].id);
-  const [selectedChannelId, setSelectedChannelId] = useState(workspaces[0].channels[0].id);
-
-  const [expandedWorkspaces, setExpandedWorkspaces] = useState([workspaces[0].id]);
+  const [workspaces, setWorkspaces] = useState([]);
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState(null);
+  const [selectedChannelId, setSelectedChannelId] = useState(null);
+  const [members, setMembers] = useState([]);
+  const [expandedWorkspaces, setExpandedWorkspaces] = useState([]);
 
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showCreateWorkspace, setShowCreateWorkspace] = useState(false);
-  const [showCreateChannel, setShowCreateChannel] = useState(false);
-
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showMembersModal, setShowMembersModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [workspaceToEdit, setWorkspaceToEdit] = useState(null);
 
-  // Functions for workspace expansion, creation, invitation, etc.
-  const toggleWorkspace = id => {
-    if (expandedWorkspaces.includes(id)) {
-      setExpandedWorkspaces(expandedWorkspaces.filter(wid => wid !== id));
-      if (selectedWorkspaceId === id) setSelectedChannelId(null);
-    } else {
-      setExpandedWorkspaces([...expandedWorkspaces, id]);
-      if (!selectedWorkspaceId) {
-        setSelectedWorkspaceId(id);
-        const ws = workspaces.find(w => w.id === id);
-        if (ws && ws.channels.length) setSelectedChannelId(ws.channels[0].id);
+  const [showCreateChannel, setShowCreateChannel] = useState(false);
+  const [error, setError] = useState(null);
+  const [loadingWorkspaces, setLoadingWorkspaces] = useState(true);
+
+  useEffect(() => {
+    if (!token) {
+      setError("Utilisateur non authentifié");
+      setLoadingWorkspaces(false);
+      return;
+    }
+
+    async function loadWorkspaces() {
+      try {
+        const res = await axios.get(`${API_URL}/workspaces/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setWorkspaces(res.data || []);
+        if (res.data && res.data.length > 0) {
+          const firstWs = res.data[0];
+          setSelectedWorkspaceId(firstWs.id);
+          setSelectedChannelId(null);
+        }
+      } catch (err) {
+        setError(err.response?.data?.detail || err.message || "Erreur inconnue");
+      } finally {
+        setLoadingWorkspaces(false);
+      }
+    }
+
+    loadWorkspaces();
+  }, [token]);
+
+  useEffect(() => {
+    if (!selectedWorkspaceId || !token) return;
+
+    async function loadMembers() {
+      try {
+        const res = await axios.get(`${API_URL}/workspaces/${selectedWorkspaceId}/members`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setMembers(res.data || []);
+      } catch (err) {
+        setError(err.response?.data?.detail || err.message || "Erreur inconnue");
+      }
+    }
+
+    loadMembers();
+  }, [selectedWorkspaceId, token]);
+
+  const handleToggleWorkspace = async (id) => {
+    const isExpanded = expandedWorkspaces.includes(id);
+    const newExpanded = isExpanded
+      ? expandedWorkspaces.filter(wsId => wsId !== id)
+      : [...expandedWorkspaces, id];
+
+    setExpandedWorkspaces(newExpanded);
+
+    if (!isExpanded && token) {
+      const targetWorkspace = workspaces.find(ws => ws.id === id);
+      if (!targetWorkspace?.channels || targetWorkspace.channels.length === 0) {
+        try {
+          const res = await axios.get(`${API_URL}/channels/workspace/${id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          setWorkspaces(prev =>
+            prev.map(ws =>
+              ws.id === id ? { ...ws, channels: res.data } : ws
+            )
+          );
+        } catch (err) {
+          setError(err.response?.data?.detail || err.message || "Erreur chargement channels");
+        }
       }
     }
   };
 
-  const handleCreateWorkspace = ({ name, isPublic }) => {
-    const newWs = {
-      id: workspaces.length + 1,
-      name,
-      isPublic,
-      channels: [],
-    };
-    setWorkspaces([...workspaces, newWs]);
-    setExpandedWorkspaces([...expandedWorkspaces, newWs.id]);
-    setSelectedWorkspaceId(newWs.id);
-    setSelectedChannelId(null);
+  const handleCreateWorkspace = async ({ name, description, isPublic }) => {
+    setError(null);
+    if (!token) {
+      setError("Utilisateur non authentifié");
+      return;
+    }
+    try {
+      const res = await axios.post(
+        `${API_URL}/workspaces/`,
+        { name, description, is_public: isPublic },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setWorkspaces(prev => [...prev, res.data]);
+      setSelectedWorkspaceId(res.data.id);
+      setSelectedChannelId(null);
+      setShowCreateWorkspace(false);
+    } catch (error) {
+      setError(error.response?.data?.detail || error.message || "Erreur création workspace");
+    }
   };
 
-  const handleCreateChannel = ({ name }) => {
-    if (!selectedWorkspaceId) return;
+  const handleInvite = async email => {
+    setError(null);
+    if (!token || !workspaceToEdit) {
+      setError("Action non autorisée");
+      return;
+    }
+    try {
+      await axios.post(
+        `${API_URL}/workspaces/${workspaceToEdit.id}/invite`,
+        { email },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const res = await axios.get(`${API_URL}/workspaces/${workspaceToEdit.id}/members`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setMembers(res.data || []);
+      setShowInviteModal(false);
+    } catch (error) {
+      setError(error.response?.data?.detail || error.message || "Erreur invitation");
+    }
+  };
+
+  const handleLeave = async id => {
+    setError(null);
+    if (!token) {
+      setError("Utilisateur non authentifié");
+      return;
+    }
+    try {
+      await axios.delete(`${API_URL}/workspaces/${id}/leave`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setWorkspaces(prev => prev.filter(ws => ws.id !== id));
+      if (selectedWorkspaceId === id) {
+        setSelectedWorkspaceId(null);
+        setSelectedChannelId(null);
+      }
+    } catch (error) {
+      setError(error.response?.data?.detail || error.message || "Erreur leave workspace");
+    }
+  };
+
+  const handleUpdateWorkspace = updatedWorkspace => {
     setWorkspaces(prev =>
-      prev.map(ws =>
-        ws.id === selectedWorkspaceId
-          ? { ...ws, channels: [...ws.channels, { id: Date.now(), name }] }
-          : ws
-      )
+      prev.map(ws => (ws.id === updatedWorkspace.id ? updatedWorkspace : ws))
     );
+    setShowEditModal(false);
   };
 
-  const handleInvite = email => {
-    alert(`Invitation envoyée à ${email} pour rejoindre "${workspaceToEdit?.name}"`);
+  const openCreateChannelModal = workspaceId => {
+    setSelectedWorkspaceId(workspaceId);
+    setShowCreateChannel(true);
   };
 
-  const handleTogglePublic = id => {
-    setWorkspaces(prev =>
-      prev.map(ws =>
-        ws.id === id ? { ...ws, isPublic: !ws.isPublic } : ws
-      )
-    );
+  const handleCreateChannel = async ({ name, description, is_private }) => {
+    setError(null);
+    if (!token) {
+      setError("Utilisateur non authentifié");
+      return;
+    }
+    try {
+      const res = await axios.post(
+        `${API_URL}/channels/`,
+        {
+          name,
+          description,
+          is_private,
+          workspace_id: selectedWorkspaceId,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setWorkspaces(prev =>
+        prev.map(ws =>
+          ws.id === selectedWorkspaceId
+            ? { ...ws, channels: [...(ws.channels || []), res.data] }
+            : ws
+        )
+      );
+
+      setSelectedChannelId(res.data.id);
+      setShowCreateChannel(false);
+    } catch (error) {
+      setError(error.response?.data?.detail || error.message || "Erreur création canal");
+    }
   };
 
-  // Chat state and send message
-  const [chatMessage, setChatMessage] = useState('');
-  const handleSendMessage = () => {
-    if (!chatMessage.trim()) return;
-    alert(`Message envoyé dans le channel ${selectedChannelId} : ${chatMessage}`);
-    setChatMessage('');
+  const handleSelect = (workspaceId, channelId = null) => {
+    setSelectedWorkspaceId(workspaceId);
+    setSelectedChannelId(channelId);
   };
 
-  const selectedWorkspace = workspaces.find(w => w.id === selectedWorkspaceId);
-  const channels = selectedWorkspace?.channels || [];
+  if (loadingWorkspaces) return <div>Chargement...</div>;
 
   return (
     <>
-      <GlobalStyle darkMode={darkMode} />
-      <PageWrapper darkMode={darkMode} colors={colors}>
+      <GlobalStyle />
+      <Navbar
+        onOpenSettings={() => setShowSettingsModal(true)}
+        onOpenProfile={() => setShowProfileModal(true)}
+      />
 
-        <NavbarWrapper darkMode={darkMode} colors={colors}>
-          <Navbar
-            darkMode={darkMode}
-            bgColor={darkMode ? colors.dark.navbarBg : colors.light.navbarBg}
-            color={darkMode ? colors.dark.text : colors.light.text}
-            onOpenSettings={() => setShowSettingsModal(true)}
-            onOpenProfile={() => setShowProfileModal(true)}
-          />
-        </NavbarWrapper>
+      {error && <ErrorBanner>{typeof error === 'object' ? JSON.stringify(error) : error}</ErrorBanner>}
 
-        <ContentWrapper>
-          <WorkspacesWrapper darkMode={darkMode} colors={colors}>
-            <Workspaces
-              darkMode={darkMode}
-              workspaces={workspaces}
-              selectedWorkspaceId={selectedWorkspaceId}
-              selectedChannelId={selectedChannelId}
-              expandedWorkspaces={expandedWorkspaces}
-              toggleWorkspace={toggleWorkspace}
-              setSelectedWorkspaceId={setSelectedWorkspaceId}
-              setSelectedChannelId={setSelectedChannelId}
-              setShowCreateWorkspace={setShowCreateWorkspace}
-              setShowCreateChannel={setShowCreateChannel}
-              setWorkspaceToEdit={setWorkspaceToEdit}
-            />
-          </WorkspacesWrapper>
+      {showSettingsModal && (
+        <SettingsModal
+          darkMode={darkMode}
+          onClose={() => setShowSettingsModal(false)}
+          setDarkMode={setDarkMode}
+          notificationsEnabled={notificationsEnabled}
+          setNotificationsEnabled={setNotificationsEnabled}
+        />
+      )}
 
-          <ChatWrapper darkMode={darkMode} colors={colors}>
-            <Chat
-              darkMode={darkMode}
-              selectedWorkspace={selectedWorkspace}
-              selectedChannelId={selectedChannelId}
-              channels={channels}
-              chatMessage={chatMessage}
-              setChatMessage={setChatMessage}
-              handleSendMessage={handleSendMessage}
-            />
-          </ChatWrapper>
-        </ContentWrapper>
+      {showProfileModal && <ProfileModal user={user} onClose={() => setShowProfileModal(false)} />}
+      {showCreateWorkspace && (
+        <CreateModal
+          onCreateSuccess={handleCreateWorkspace}
+          onClose={() => setShowCreateWorkspace(false)}
+        />
+      )}
+      {workspaceToEdit && showInviteModal && (
+        <InviteModal
+          workspace={workspaceToEdit}
+          onInvite={handleInvite}
+          onClose={() => setShowInviteModal(false)}
+        />
+      )}
+      {showMembersModal && (
+        <MembersModal
+          workspaceId={selectedWorkspaceId}
+          members={members}
+          onChangeRole={() => {}}
+          onRemoveMember={() => {}}
+          onClose={() => setShowMembersModal(false)}
+        />
+      )}
+      {workspaceToEdit && showEditModal && (
+        <EditWorkspaceModal
+          workspace={workspaceToEdit}
+          onClose={() => setShowEditModal(false)}
+          onUpdate={handleUpdateWorkspace}
+        />
+      )}
+      {showCreateChannel && (
+        <CreateChannelModal
+          onCreateChannel={handleCreateChannel}
+          onClose={() => setShowCreateChannel(false)}
+          workspaceId={selectedWorkspaceId}
+        />
+      )}
 
-        {/* Modals */}
-        {showSettingsModal && (
-          <SettingsModal
-            darkMode={darkMode}
-            onClose={() => setShowSettingsModal(false)}
-            setDarkMode={setDarkMode}
-            notificationsEnabled={notificationsEnabled}
-            setNotificationsEnabled={setNotificationsEnabled}
-          />
-        )}
+      <Container>
+        <Workspaces
+          workspaces={workspaces}
+          selectedWorkspaceId={selectedWorkspaceId}
+          selectedChannelId={selectedChannelId}
+          expandedWorkspaces={expandedWorkspaces}
+          onToggle={handleToggleWorkspace}
+          onSelect={handleSelect}
+          onCreateWorkspace={() => setShowCreateWorkspace(true)}
+          onInvite={ws => {
+            setWorkspaceToEdit(ws);
+            setShowInviteModal(true);
+          }}
+          onInfo={ws => {
+            setSelectedWorkspaceId(ws.id);
+            setShowMembersModal(true);
+          }}
+          onLeave={handleLeave}
+          onEdit={ws => {
+            setWorkspaceToEdit(ws);
+            setShowEditModal(true);
+          }}
+          onCreateChannel={openCreateChannelModal}
+          darkMode={darkMode}
+        />
 
-        {showProfileModal && (
-          <ProfileModal onClose={() => setShowProfileModal(false)} user={user} />
-        )}
-
-        {showCreateWorkspace && (
-          <CreateModal
-            title="Créer un workspace"
-            onClose={() => setShowCreateWorkspace(false)}
-            onSubmit={handleCreateWorkspace}
-            fields={[
-              { label: 'Nom du workspace', name: 'name', type: 'text' },
-              { label: 'Public', name: 'isPublic', type: 'checkbox' },
-            ]}
-            darkMode={darkMode}
-          />
-        )}
-
-        {showCreateChannel && (
-          <CreateModal
-            title="Créer un salon"
-            onClose={() => setShowCreateChannel(false)}
-            onSubmit={handleCreateChannel}
-            fields={[{ label: 'Nom du salon', name: 'name', type: 'text' }]}
-            darkMode={darkMode}
-          />
-        )}
-
-        {workspaceToEdit && (
-          <InviteModal
-            darkMode={darkMode}
-            workspace={workspaceToEdit}
-            onClose={() => setWorkspaceToEdit(null)}
-            onInvite={handleInvite}
-            onTogglePublic={handleTogglePublic}
-          />
-        )}
-      </PageWrapper>
+        <Chat
+          channels={workspaces.find(ws => ws.id === selectedWorkspaceId)?.channels || []}
+          channelId={selectedChannelId}
+          onCreateChannelClick={() => setShowCreateChannel(true)}
+          workspaceId={selectedWorkspaceId}
+        />
+      </Container>
     </>
   );
 }
+
+const Container = styled.div`
+  display: flex;
+  height: calc(100vh - 56px);
+`;
+
+const ErrorBanner = styled.div`
+  background-color: #ffdddd;
+  color: #a33;
+  padding: 1rem;
+  margin: 1rem;
+  border: 1px solid #a33;
+  border-radius: 4px;
+  font-weight: bold;
+`;

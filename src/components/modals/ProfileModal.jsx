@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
+import axios from 'axios';
 
 const ModalBackdrop = styled.div`
   position: fixed;
@@ -18,29 +19,102 @@ const ModalContent = styled.div`
   width: 400px;
 `;
 
-export default function ProfileModal({ onClose, user }) {
-  const [name, setName] = useState(user.name || '');
-  const [email, setEmail] = useState(user.email || '');
+const ErrorText = styled.div`
+  color: red;
+  margin-top: 0.5rem;
+`;
 
-  function handleSave() {
-    // Pour l'instant, juste fermer, car setUser n'est pas défini dans ce scope
-    // Tu peux ajouter une logique pour sauvegarder via Redux ou API ici
-    onClose();
-  }
+export default function ProfileModal({ onClose }) {
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [original, setOriginal] = useState(null);
+  const [error, setError] = useState('');
+
+  const token = localStorage.getItem('token');
+
+  // Récupération des infos utilisateur
+  useEffect(() => {
+    if (!token) return;
+
+    axios
+      .get('http://127.0.0.1:8000/auth/me', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      })
+      .then((res) => {
+        setOriginal(res.data);
+        setUsername(res.data.username);
+        setEmail(res.data.email);
+      })
+      .catch(() => {
+        setError("Erreur lors du chargement du profil.");
+      });
+  }, [token]);
+
+  // Sauvegarde des modifications
+  const handleSave = () => {
+    setError('');
+
+    axios
+      .put(
+        'http://127.0.0.1:8000/users/me',
+        {
+          username,
+          email,
+          is_active: true,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+      .then((res) => {
+        console.log('Profil mis à jour :', res.data);
+        onClose();
+      })
+      .catch((err) => {
+        if (err.response && err.response.data?.detail) {
+          setError(
+            Array.isArray(err.response.data.detail)
+              ? err.response.data.detail[0]?.msg || 'Erreur de validation.'
+              : 'Erreur lors de la mise à jour.'
+          );
+        } else {
+          setError('Erreur réseau.');
+        }
+      });
+  };
 
   return (
     <ModalBackdrop onClick={onClose}>
-      <ModalContent onClick={e => e.stopPropagation()}>
+      <ModalContent onClick={(e) => e.stopPropagation()}>
         <h2>Profil</h2>
+
         <label>
-          Nom :
-          <input value={name} onChange={e => setName(e.target.value)} />
+          Nom d'utilisateur :
+          <input
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            style={{ width: '100%', marginBottom: '1rem' }}
+          />
         </label>
-        <br />
+
         <label>
           Email :
-          <input type="email" value={email} onChange={e => setEmail(e.target.value)} />
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            style={{ width: '100%' }}
+          />
         </label>
+
+        {error && <ErrorText>{error}</ErrorText>}
+
         <br /><br />
         <button onClick={handleSave}>Sauvegarder</button>{' '}
         <button onClick={onClose}>Annuler</button>

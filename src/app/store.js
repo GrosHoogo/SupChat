@@ -1,10 +1,14 @@
 import { configureStore } from '@reduxjs/toolkit';
-import authReducer from '../features/auth/authSlice';
-import workspaceReducer from '../features/workspace/workspaceSlice';
+import authReducer from '../features/auth/authSlice'; 
+import channelsReducer from '../features/channels/channelSlice'; 
+import messagesReducer from '../features/messages/messagesSlice';
 
-export const store = configureStore({
+const store = configureStore({
   reducer: {
     auth: authReducer,
-    workspace: workspaceReducer,
+    channels: channelsReducer,
+    messages: messagesReducer,
   },
 });
+
+export default store;

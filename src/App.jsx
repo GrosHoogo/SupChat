@@ -4,8 +4,6 @@ import { useSelector } from 'react-redux';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
-import WorkspacePage from './pages/WorkspacePage';
-import ChatPage from './pages/ChatPage';
 import GlobalStyle from './styles/GlobalStyle';
 
 function PrivateRoute({ children }) {
@@ -23,8 +21,6 @@ export default function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
-          <Route path="/workspace/:workspaceId" element={<PrivateRoute><WorkspacePage /></PrivateRoute>} />
-          <Route path="/workspace/:workspaceId/channel/:channelId" element={<PrivateRoute><ChatPage /></PrivateRoute>} />
         </Routes>
       </BrowserRouter>
     </>

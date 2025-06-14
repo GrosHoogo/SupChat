@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
+import { useDispatch } from 'react-redux';
+import { logout } from '../features/auth/authSlice';
+import { useNavigate } from 'react-router-dom';
 
 const NavbarContainer = styled.nav`
   display: flex;
@@ -66,10 +69,17 @@ const NavButton = styled.button`
 
 export default function Navbar({ darkMode, onOpenSettings, onOpenProfile, onSearch }) {
   const [searchTerm, setSearchTerm] = useState('');
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   function handleSearchChange(e) {
     setSearchTerm(e.target.value);
     if (onSearch) onSearch(e.target.value);
+  }
+
+  function handleLogout() {
+    dispatch(logout());
+    navigate('/login');
   }
 
   return (
@@ -91,6 +101,7 @@ export default function Navbar({ darkMode, onOpenSettings, onOpenProfile, onSear
       <RightGroup>
         <NavButton darkMode={darkMode} onClick={onOpenSettings}>⚙️ Paramètres</NavButton>
         <NavButton darkMode={darkMode} onClick={onOpenProfile}>👤 Profil</NavButton>
+        <NavButton darkMode={darkMode} onClick={handleLogout}>Déconnexion</NavButton>
       </RightGroup>
     </NavbarContainer>
   );

@@ -2,34 +2,48 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
-const primaryColor = '#35384A';
-
 const RegisterPage = () => {
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [form, setForm] = useState({ username: '', email: '', password: '' });
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  const handleChange = (e) => {
+    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
+    setLoading(true);
+
     try {
-      // Appel API - tu peux remplacer par mock ou simuler en attendant
-      await axios.post(`${process.env.REACT_APP_API_URL}/auth/register`, {
-        username,
-        email,
-        password,
-      });
-      alert('Compte créé avec succès ! Connectez-vous.');
+      const response = await axios.post(
+        `${process.env.REACT_APP_API_URL}/auth/register`,
+        form,
+        {
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+      alert('Inscription réussie ! Vous pouvez maintenant vous connecter.');
       navigate('/login');
     } catch (err) {
-      alert('Erreur : ' + (err.response?.data?.detail || err.message));
+      if (err.response && err.response.data) {
+        setError(JSON.stringify(err.response.data));
+      } else if (err.request) {
+        setError('Erreur réseau, pas de réponse du serveur.');
+      } else {
+        setError('Erreur: ' + err.message);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div style={{
       minHeight: '100vh',
-      backgroundColor: primaryColor,
+      backgroundColor: '#35384A',
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
@@ -47,32 +61,42 @@ const RegisterPage = () => {
       }}>
         <h2 style={{ marginBottom: 20, textAlign: 'center' }}>Créer un compte</h2>
 
+        {error && <div style={{ marginBottom: 15, color: 'red' }}>{error}</div>}
+
         <input
           type="text"
+          name="username"
           placeholder="Nom d’utilisateur"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
+          value={form.username}
+          onChange={handleChange}
           required
           style={inputStyle}
+          disabled={loading}
         />
         <input
           type="email"
+          name="email"
           placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          value={form.email}
+          onChange={handleChange}
           required
           style={inputStyle}
+          disabled={loading}
         />
         <input
           type="password"
+          name="password"
           placeholder="Mot de passe"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          value={form.password}
+          onChange={handleChange}
           required
           style={inputStyle}
+          disabled={loading}
         />
 
-        <button type="submit" style={buttonStyle}>S’inscrire</button>
+        <button type="submit" style={buttonStyle} disabled={loading}>
+          {loading ? 'Inscription en cours...' : 'S’inscrire'}
+        </button>
 
         <p style={{ marginTop: 15, textAlign: 'center', fontSize: 14 }}>
           Déjà un compte ? <a href="/login" style={{ color: '#80b3ff' }}>Connectez-vous</a>
@@ -101,7 +125,7 @@ const buttonStyle = {
   fontWeight: 'bold',
   cursor: 'pointer',
   fontSize: 16,
-  color: primaryColor,
+  color: '#35384A',
   transition: 'background-color 0.3s ease',
 };
 

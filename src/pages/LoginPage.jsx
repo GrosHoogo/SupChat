@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { loginUser } from '../features/auth/authSlice';
+import { loginUser, fetchMe } from '../features/auth/authSlice';
 import { GoogleLogin } from '@react-oauth/google';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
@@ -47,20 +47,28 @@ const ErrorMessage = styled.div`
 export default function LoginPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const auth = useSelector(state => state.auth);
-  const [form, setForm] = useState({ username: '', password: '' });
+  const auth = useSelector((state) => state.auth);
+  const [form, setForm] = useState({ email: '', password: '' });
 
-  const onChange = e => setForm({ ...form, [e.target.name]: e.target.value });
+  const onChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
-  const onSubmit = e => {
+  const onSubmit = (e) => {
     e.preventDefault();
-    dispatch(loginUser(form));
+    dispatch(loginUser({ email: form.email, password: form.password }));
   };
 
   const handleGoogleSuccess = (credentialResponse) => {
     dispatch(loginUser({ oauth: 'google', token: credentialResponse.credential }));
   };
 
+  // Si on a un token mais pas encore de user => fetch user
+  useEffect(() => {
+    if (auth.token && !auth.user) {
+      dispatch(fetchMe());
+    }
+  }, [auth.token, auth.user, dispatch]);
+
+  // Si on a un user => go dashboard
   useEffect(() => {
     if (auth.user) {
       navigate('/dashboard');
@@ -70,14 +78,15 @@ export default function LoginPage() {
   return (
     <Container>
       <h2>Connexion</h2>
-      {auth.error && <ErrorMessage>{auth.error}</ErrorMessage>}
+      {auth.error && <ErrorMessage>{auth.error.toString()}</ErrorMessage>}
       <form onSubmit={onSubmit}>
         <Input
-          type="text"
-          name="username"
-          placeholder="Nom d'utilisateur"
-          value={form.username}
+          type="email"
+          name="email"
+          placeholder="Email"
+          value={form.email}
           onChange={onChange}
+          required
         />
         <Input
           type="password"
@@ -85,13 +94,19 @@ export default function LoginPage() {
           placeholder="Mot de passe"
           value={form.password}
           onChange={onChange}
+          required
         />
-        <Button type="submit" disabled={auth.loading}>Se connecter</Button>
+        <Button type="submit" disabled={auth.loading}>
+          Se connecter
+        </Button>
       </form>
       <p>
         Pas encore de compte ? <a href="/register">Inscrivez-vous ici</a>
       </p>
-      <GoogleLogin onSuccess={handleGoogleSuccess} onError={() => alert('Erreur Google Login')} />
+      <GoogleLogin
+        onSuccess={handleGoogleSuccess}
+        onError={() => alert('Erreur Google Login')}
+      />
     </Container>
   );
 }
