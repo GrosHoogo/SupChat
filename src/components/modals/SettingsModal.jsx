@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
+import axios from 'axios';
 import { useTheme } from '../../contexts/ThemeContext';
 
 const ModalBackdrop = styled.div`
@@ -23,25 +24,46 @@ const ModalContent = styled.div`
 export default function SettingsModal() {
   const { darkMode, setDarkMode } = useTheme();
 
-  const personalData = {
-    username: 'JeanDupont',
-    email: 'jean.dupont@example.com',
-    created_at: '2023-01-15',
-  };
-
+  const [userData, setUserData] = useState(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [status, setStatus] = useState('en ligne');
   const [modalOpen, setModalOpen] = useState(true);
+  const [error, setError] = useState('');
 
-  function handleExportData() {
+  const token = localStorage.getItem('token');
+
+  // Chargement des données utilisateur depuis /auth/me
+  useEffect(() => {
+    if (!token) return;
+
+    axios
+      .get('http://127.0.0.1:8000/auth/me', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      })
+      .then((res) => {
+        setUserData(res.data);
+      })
+      .catch((err) => {
+        setError('Erreur lors du chargement des données RGPD.');
+        console.error(err);
+      });
+  }, [token]);
+
+  // Exporter les données RGPD
+  const handleExportData = () => {
+    if (!userData) return;
+
     const exportData = {
-      username: personalData.username,
-      email: personalData.email,
-      created_at: personalData.created_at,
+      username: userData.username,
+      email: userData.email,
+      created_at: userData.created_at,
     };
 
     const dataStr = JSON.stringify(exportData, null, 2);
-    const blob = new Blob([dataStr], { type: "application/json" });
+    const blob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
 
     const a = document.createElement('a');
@@ -49,21 +71,20 @@ export default function SettingsModal() {
     a.download = 'mes_donnees_personnelles.json';
     a.click();
     URL.revokeObjectURL(url);
-  }
+  };
 
   if (!modalOpen) return null;
 
   return (
     <ModalBackdrop onClick={() => setModalOpen(false)}>
-      {/* Forcer darkMode à false pour garder la popup en mode clair */}
-      <ModalContent darkMode={false} onClick={e => e.stopPropagation()}>
+      <ModalContent darkMode={false} onClick={(e) => e.stopPropagation()}>
         <h2>Paramètres</h2>
 
         <label>
           <input
             type="checkbox"
             checked={darkMode}
-            onChange={e => setDarkMode(e.target.checked)}
+            onChange={(e) => setDarkMode(e.target.checked)}
           /> Mode sombre
         </label>
 
@@ -73,7 +94,7 @@ export default function SettingsModal() {
           <input
             type="checkbox"
             checked={notificationsEnabled}
-            onChange={e => setNotificationsEnabled(e.target.checked)}
+            onChange={(e) => setNotificationsEnabled(e.target.checked)}
           /> Notifications
         </label>
 
@@ -83,7 +104,7 @@ export default function SettingsModal() {
           Statut :
           <select
             value={status}
-            onChange={e => setStatus(e.target.value)}
+            onChange={(e) => setStatus(e.target.value)}
             style={{ marginLeft: '0.5rem' }}
           >
             <option value="en ligne">En ligne</option>
@@ -94,7 +115,14 @@ export default function SettingsModal() {
 
         <br /><br />
 
-        <button onClick={handleExportData}>Exporter mes données (RGPD)</button>
+        <button
+          onClick={handleExportData}
+          disabled={!userData}
+        >
+          Exporter mes données (RGPD)
+        </button>
+
+        {error && <p style={{ color: 'red', marginTop: '1rem' }}>{error}</p>}
 
         <br /><br />
 

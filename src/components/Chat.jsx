@@ -119,6 +119,7 @@ const MessageBubble = styled.div`
 const InputArea = styled.div`
   display: flex;
   gap: 0.5rem;
+  align-items: center;
 `;
 
 const MessageInput = styled.textarea`
@@ -131,6 +132,7 @@ const MessageInput = styled.textarea`
   color: ${({ darkMode }) => (darkMode ? '#ddd' : '#222')};
   background-color: ${({ darkMode }) => (darkMode ? '#3a3e54' : 'white')};
   outline: none;
+  height: 40px;
 `;
 
 const SendButton = styled.button`
@@ -140,6 +142,12 @@ const SendButton = styled.button`
   border-radius: 4px;
   padding: 0 1rem;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px; 
+  width: 150px;  
+  font-size: 1.3rem;
 
   &:hover {
     background-color: ${({ darkMode }) => (darkMode ? '#6a6e94' : '#737aa7')};
@@ -149,6 +157,38 @@ const SendButton = styled.button`
     opacity: 0.6;
     cursor: not-allowed;
   }
+`;
+
+const EmojiButton = styled.button`
+  background: none;
+  border: none;
+  font-size: 1.6rem;
+  cursor: pointer;
+  color: ${({ darkMode }) => (darkMode ? '#ddd' : '#222')};
+  padding: 0 0.3rem;
+  height: 40px;
+  display: flex;
+  align-items: center;
+
+  &:hover {
+    color: ${({ darkMode }) => (darkMode ? '#fff' : '#555')};
+  }
+`;
+
+const EmojiPicker = styled.div`
+  position: absolute;
+  bottom: 50px;
+  right: 0;
+  background: ${({ darkMode }) => (darkMode ? '#3a3e54' : 'white')};
+  border: 1px solid ${({ darkMode }) => (darkMode ? '#555' : '#ccc')};
+  border-radius: 8px;
+  padding: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  width: 200px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  z-index: 20;
 `;
 
 export default function Chat({ channelId, workspaceId, darkMode = false }) {
@@ -164,6 +204,8 @@ export default function Chat({ channelId, workspaceId, darkMode = false }) {
   const [editDescription, setEditDescription] = useState('');
   const [editIsPrivate, setEditIsPrivate] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
+
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -382,7 +424,7 @@ export default function Chat({ channelId, workspaceId, darkMode = false }) {
       <InputArea>
         <MessageInput
           darkMode={darkMode}
-          rows={2}
+          rows={1}
           placeholder="Écris un message..."
           value={input}
           onChange={e => setInput(e.target.value)}
@@ -393,14 +435,59 @@ export default function Chat({ channelId, workspaceId, darkMode = false }) {
             }
           }}
         />
+
+        {/* Bouton emoji à gauche du bouton envoyer */}
+        <EmojiButton
+          darkMode={darkMode}
+          aria-label="Ouvrir le sélecteur emoji"
+          onClick={() => setShowEmojiPicker(v => !v)}
+          type="button"
+        >
+          😀
+        </EmojiButton>
+
         <SendButton
           darkMode={darkMode}
+          aria-label="Envoyer le message"
           onClick={handleSend}
           disabled={!input.trim()}
-          aria-label="Envoyer le message"
+          type="button"
         >
-          ➤
+          {/* Icône d'envoi (flèche) */}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            viewBox="0 0 24 24"
+          >
+            <line x1="22" y1="2" x2="11" y2="13" />
+            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+          </svg>
         </SendButton>
+
+        {showEmojiPicker && (
+          <EmojiPicker darkMode={darkMode}>
+            {['😀','😁','😂','😃','😄','😅','😆','😉','😊','😋','😎','😍','😘','😗','😙','😚','🙂','🤗','🤔','😐'].map(emoji => (
+              <EmojiButton
+                key={emoji}
+                darkMode={darkMode}
+                type="button"
+                onClick={() => {
+                  setInput(input + emoji);
+                  setShowEmojiPicker(false);
+                }}
+                aria-label={`Ajouter emoji ${emoji}`}
+              >
+                {emoji}
+              </EmojiButton>
+            ))}
+          </EmojiPicker>
+        )}
       </InputArea>
     </ChatContainer>
   );
