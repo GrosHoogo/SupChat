@@ -92,6 +92,7 @@ export const MessageWrapper = styled.div`
   display: flex;
   flex-direction: column;
   align-items: ${({ isCurrentUser }) => (isCurrentUser ? 'flex-end' : 'flex-start')};
+  position: relative;
 `;
 
 export const UserName = styled.span`
@@ -110,12 +111,76 @@ export const MessageBubble = styled.div`
   padding: 0.6rem 0.9rem;
   border-radius: 12px;
   word-break: break-word;
+  position: relative;
+`;
+
+export const MessageActions = styled.div`
+  display: flex;
+  gap: 0.3rem;
+  background: ${({ darkMode }) => (darkMode ? '#3a3e54' : '#ffffff')};
+  border: 1px solid ${({ darkMode }) => (darkMode ? '#555' : '#ddd')};
+  border-radius: 8px;
+  padding: 0.2rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  position: absolute;
+  top: -0.5rem;
+  right: -0.5rem;
+  z-index: 5;
+`;
+
+export const ActionButton = styled.button`
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background-color: ${({ darkMode }) => (darkMode ? '#4e548b' : '#e6e8f0')};
+  }
+`;
+
+export const ReactionPicker = styled.div`
+  position: absolute;
+  top: -3rem;
+  right: -1rem;
+  background: ${({ darkMode }) => (darkMode ? '#3a3e54' : 'white')};
+  border: 1px solid ${({ darkMode }) => (darkMode ? '#555' : '#ccc')};
+  border-radius: 8px;
+  padding: 0.5rem;
+  display: flex;
+  gap: 0.3rem;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+  z-index: 10;
+`;
+
+export const MessageReactions = styled.div`
+  display: flex;
+  gap: 0.3rem;
+  margin-top: 0.3rem;
+  align-self: ${({ isCurrentUser }) => (isCurrentUser ? 'flex-end' : 'flex-start')};
+`;
+
+export const ReactionItem = styled.span`
+  background: ${({ darkMode }) => (darkMode ? '#4e548b' : '#e6e8f0')};
+  color: ${({ darkMode }) => (darkMode ? '#fff' : '#333')};
+  padding: 0.2rem 0.4rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
 `;
 
 export const InputArea = styled.div`
   display: flex;
   gap: 0.5rem;
   align-items: center;
+  position: relative;
 `;
 
 export const MessageInput = styled.textarea`

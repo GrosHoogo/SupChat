@@ -7,7 +7,8 @@ import {
   FaUserFriends,
   FaSignOutAlt,
   FaUserCog,
-  FaEdit
+  FaEdit,
+  FaTrash
 } from 'react-icons/fa';
 
 import { useTheme } from '../contexts/ThemeContext';
@@ -42,7 +43,8 @@ export default function Workspaces({
   onInfo,
   onLeave,
   onEdit,
-  onCreateChannel
+  onCreateChannel,
+  onDelete // Nouvelle prop pour gérer la suppression
 }) {
   const { darkMode } = useTheme();
 
@@ -142,6 +144,37 @@ export default function Workspaces({
       });
   }
 
+  function handleDeleteWorkspace(workspace) {
+    const confirmDelete = window.confirm(
+      `Êtes-vous sûr de vouloir supprimer définitivement le workspace "${workspace.name}" ?\n\nCette action est irréversible et supprimera tous les canaux et messages associés.`
+    );
+    
+    if (!confirmDelete) return;
+
+    if (!token) {
+      alert("Token manquant. Merci de vous reconnecter.");
+      return;
+    }
+
+    axios.delete(`http://127.0.0.1:8000/workspaces/${workspace.id}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(() => {
+        alert("Workspace supprimé avec succès !");
+        if (onDelete) {
+          onDelete(workspace.id);
+        }
+      })
+      .catch(err => {
+        console.error("Erreur suppression workspace:", err);
+        if (err.response) {
+          alert(`Erreur lors de la suppression: ${err.response.status} - ${err.response.data?.detail || 'Erreur inconnue'}`);
+        } else {
+          alert("Erreur lors de la suppression du workspace.");
+        }
+      });
+  }
+
   return (
     <Container darkMode={darkMode}>
       <Header>Workspaces</Header>
@@ -179,6 +212,16 @@ export default function Workspaces({
                   onEdit(ws);
                 }}>
                   <FaEdit />
+                </IconButton>
+                <IconButton 
+                  title="Supprimer le workspace" 
+                  onClick={e => {
+                    e.stopPropagation();
+                    handleDeleteWorkspace(ws);
+                  }}
+                  style={{ color: '#dc3545' }}
+                >
+                  <FaTrash />
                 </IconButton>
                 <IconButton title="Quitter" onClick={e => {
                   e.stopPropagation();

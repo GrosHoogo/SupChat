@@ -18,7 +18,12 @@ import {
   MessageInput,
   SendButton,
   EmojiButton,
-  EmojiPicker
+  EmojiPicker,
+  MessageActions,
+  ActionButton,
+  ReactionPicker,
+  MessageReactions,
+  ReactionItem
 } from './ChatStyles';
 
 export default function Chat({ channelId, workspaceId, darkMode = false }) {
@@ -36,6 +41,11 @@ export default function Chat({ channelId, workspaceId, darkMode = false }) {
   const [isPinned, setIsPinned] = useState(false);
 
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [hoveredMessage, setHoveredMessage] = useState(null);
+  const [showReactionPicker, setShowReactionPicker] = useState(null);
+
+  // Emojis disponibles pour les réactions
+  const reactionEmojis = ['👍', '👎', '❤️', '😂', '😮', '😢', '😡', '👏'];
 
   useEffect(() => {
     if (!token) return;
@@ -156,6 +166,41 @@ export default function Chat({ channelId, workspaceId, darkMode = false }) {
     }
   };
 
+  // Fonction pour supprimer un message
+  const handleDeleteMessage = async (messageId) => {
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce message ?')) {
+      return;
+    }
+    
+    try {
+      await axios.delete(`http://127.0.0.1:8000/channels/${channelId}/messages/${messageId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      // Mettre à jour l'état local en supprimant le message
+      setMessages(prev => prev.filter(msg => msg._id !== messageId));
+    } catch (error) {
+      console.error('Erreur lors de la suppression du message:', error);
+      alert('Erreur lors de la suppression du message');
+    }
+  };
+
+  // Fonction pour ajouter une réaction
+  const handleAddReaction = async (messageId, reaction) => {
+    try {
+      await axios.patch(`http://127.0.0.1:8000/channels/${channelId}/messages/${messageId}`, {
+        reaction: reaction,
+        action: 'add_reaction'
+      }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      setShowReactionPicker(null);
+    } catch (error) {
+      console.error('Erreur lors de l\'ajout de la réaction:', error);
+    }
+  };
+
   // Fonction pour gérer le pin/unpin
   const handlePinToggle = async (shouldPin) => {
     try {
@@ -172,7 +217,7 @@ export default function Chat({ channelId, workspaceId, darkMode = false }) {
       }
     } catch (error) {
       console.error('Erreur lors du pin/unpin:', error);
-      throw error; // Re-lancer l'erreur pour la gestion dans handleEditSubmit
+      throw error;
     }
   };
 
@@ -184,7 +229,6 @@ export default function Chat({ channelId, workspaceId, darkMode = false }) {
         name: editName,
         description: editDescription,
         is_private: editIsPrivate,
-        // Ne pas inclure is_pinned ici
       }, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -209,7 +253,6 @@ export default function Chat({ channelId, workspaceId, darkMode = false }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       alert('Channel supprimé avec succès.');
-      // Ajouter redirection ou autre comportement ici si besoin
     } catch (error) {
       console.error(error);
       alert('Erreur lors de la suppression du channel.');
@@ -217,6 +260,19 @@ export default function Chat({ channelId, workspaceId, darkMode = false }) {
   };
 
   const currentUserId = currentUser?.id || currentUser?._id || null;
+
+  // Fonction pour regrouper les réactions par emoji
+  const groupReactions = (reactions) => {
+    if (!reactions || !Array.isArray(reactions)) return {};
+    
+    return reactions.reduce((acc, reaction) => {
+      if (!acc[reaction.emoji]) {
+        acc[reaction.emoji] = [];
+      }
+      acc[reaction.emoji].push(reaction.user_id);
+      return acc;
+    }, {});
+  };
 
   return (
     <ChatContainer darkMode={darkMode}>
@@ -283,12 +339,73 @@ export default function Chat({ channelId, workspaceId, darkMode = false }) {
       <MessagesArea darkMode={darkMode}>
         {messages.map(msg => {
           const isCurrentUser = currentUserId && String(msg.sender_id) === String(currentUserId);
+          const reactions = groupReactions(msg.reactions);
+          
           return (
-            <MessageWrapper key={msg._id} isCurrentUser={isCurrentUser}>
+            <MessageWrapper 
+              key={msg._id} 
+              isCurrentUser={isCurrentUser}
+              onMouseEnter={() => setHoveredMessage(msg._id)}
+              onMouseLeave={() => setHoveredMessage(null)}
+            >
               <UserName>{isCurrentUser ? 'Moi' : 'Utilisateur'}</UserName>
-              <MessageBubble isCurrentUser={isCurrentUser} darkMode={darkMode}>
-                {msg.content}
-              </MessageBubble>
+              
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                <MessageBubble isCurrentUser={isCurrentUser} darkMode={darkMode}>
+                  {msg.content}
+                </MessageBubble>
+
+                {/* Actions qui apparaissent au hover */}
+                {hoveredMessage === msg._id && (
+                  <MessageActions darkMode={darkMode}>
+                    <ActionButton
+                      darkMode={darkMode}
+                      onClick={() => setShowReactionPicker(showReactionPicker === msg._id ? null : msg._id)}
+                      title="Ajouter une réaction"
+                    >
+                      😊
+                    </ActionButton>
+                    
+                    {isCurrentUser && (
+                      <ActionButton
+                        darkMode={darkMode}
+                        onClick={() => handleDeleteMessage(msg._id)}
+                        title="Supprimer le message"
+                        style={{ color: '#ff6b6b' }}
+                      >
+                        🗑️
+                      </ActionButton>
+                    )}
+                  </MessageActions>
+                )}
+
+                {/* Sélecteur de réactions */}
+                {showReactionPicker === msg._id && (
+                  <ReactionPicker darkMode={darkMode}>
+                    {reactionEmojis.map(emoji => (
+                      <EmojiButton
+                        key={emoji}
+                        darkMode={darkMode}
+                        onClick={() => handleAddReaction(msg._id, emoji)}
+                        title={`Réagir avec ${emoji}`}
+                      >
+                        {emoji}
+                      </EmojiButton>
+                    ))}
+                  </ReactionPicker>
+                )}
+              </div>
+
+              {/* Affichage des réactions existantes */}
+              {Object.keys(reactions).length > 0 && (
+                <MessageReactions isCurrentUser={isCurrentUser}>
+                  {Object.entries(reactions).map(([emoji, users]) => (
+                    <ReactionItem key={emoji} darkMode={darkMode}>
+                      {emoji} {users.length}
+                    </ReactionItem>
+                  ))}
+                </MessageReactions>
+              )}
             </MessageWrapper>
           );
         })}
@@ -310,7 +427,6 @@ export default function Chat({ channelId, workspaceId, darkMode = false }) {
           }}
         />
 
-        {/* Bouton emoji à gauche du bouton envoyer */}
         <EmojiButton
           darkMode={darkMode}
           aria-label="Ouvrir le sélecteur emoji"
@@ -327,7 +443,6 @@ export default function Chat({ channelId, workspaceId, darkMode = false }) {
           disabled={!input.trim()}
           type="button"
         >
-          {/* Icône d'envoi (flèche) */}
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="20"
