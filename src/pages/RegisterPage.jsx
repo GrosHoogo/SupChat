@@ -107,7 +107,7 @@ const RegisterPage = () => {
 };
 
 const inputStyle = {
-  width: '100%',
+  width: '95%',
   padding: 10,
   marginBottom: 15,
   borderRadius: 4,
