@@ -1,195 +1,25 @@
 import React, { useEffect, useState, useRef } from 'react';
-import styled from 'styled-components';
 import axios from 'axios';
 import socket from '../api/socket';
-
-// Styled Components
-const ChatContainer = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background-color: ${({ darkMode }) => (darkMode ? '#35384A' : 'white')};
-  color: ${({ darkMode }) => (darkMode ? '#ddd' : '#222')};
-  padding: 1rem;
-`;
-
-const Header = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-  position: relative;
-`;
-
-const ButtonsGroup = styled.div`
-  display: flex;
-  gap: 0.5rem;
-`;
-
-const ChannelName = styled.h3`
-  font-size: 1.1rem;
-  opacity: 0.8;
-`;
-
-const EditButton = styled.button`
-  background: none;
-  border: none;
-  color: ${({ darkMode }) => (darkMode ? '#ddd' : '#222')};
-  cursor: pointer;
-  font-weight: bold;
-  font-size: 1.1rem;
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
-
-  &:hover {
-    background-color: ${({ darkMode }) => (darkMode ? '#4e548b' : '#d0d8ff')};
-  }
-`;
-
-const UpdateForm = styled.form`
-  position: absolute;
-  top: 100%;
-  right: 0;
-  background: ${({ darkMode }) => (darkMode ? '#3a3e54' : 'white')};
-  border: 1px solid ${({ darkMode }) => (darkMode ? '#555' : '#ccc')};
-  border-radius: 8px;
-  padding: 1rem;
-  margin-top: 0.3rem;
-  z-index: 10;
-  width: 240px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-`;
-
-const Input = styled.input`
-  padding: 0.4rem 0.6rem;
-  border-radius: 4px;
-  border: 1px solid ${({ darkMode }) => (darkMode ? '#555' : '#ccc')};
-  background-color: ${({ darkMode }) => (darkMode ? '#3a3e54' : 'white')};
-  color: ${({ darkMode }) => (darkMode ? '#ddd' : '#222')};
-  font-size: 0.9rem;
-`;
-
-const CheckboxLabel = styled.label`
-  font-size: 0.9rem;
-  color: ${({ darkMode }) => (darkMode ? '#ddd' : '#222')};
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-`;
-
-const MessagesArea = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  margin-bottom: 1rem;
-  background-color: ${({ darkMode }) => (darkMode ? '#272b3a' : '#f0f0f0')};
-  border-radius: 8px;
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.8rem;
-`;
-
-const MessageWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: ${({ isCurrentUser }) => (isCurrentUser ? 'flex-end' : 'flex-start')};
-`;
-
-const UserName = styled.span`
-  font-size: 0.85rem;
-  margin-bottom: 0.2rem;
-  opacity: 0.7;
-`;
-
-const MessageBubble = styled.div`
-  max-width: 60%;
-  background-color: ${({ isCurrentUser, darkMode }) =>
-    isCurrentUser
-      ? darkMode ? '#4e548b' : '#d0d8ff'
-      : darkMode ? '#3e4157' : '#e4e6ed'};
-  color: ${({ darkMode }) => (darkMode ? '#fff' : '#111')};
-  padding: 0.6rem 0.9rem;
-  border-radius: 12px;
-  word-break: break-word;
-`;
-
-const InputArea = styled.div`
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-`;
-
-const MessageInput = styled.textarea`
-  flex: 1;
-  resize: none;
-  padding: 0.5rem;
-  border-radius: 4px;
-  border: 1px solid ${({ darkMode }) => (darkMode ? '#555' : '#ccc')};
-  font-size: 1rem;
-  color: ${({ darkMode }) => (darkMode ? '#ddd' : '#222')};
-  background-color: ${({ darkMode }) => (darkMode ? '#3a3e54' : 'white')};
-  outline: none;
-  height: 40px;
-`;
-
-const SendButton = styled.button`
-  background-color: ${({ darkMode }) => (darkMode ? '#575a7c' : '#5a5e80')};
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 0 1rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 40px; 
-  width: 150px;  
-  font-size: 1.3rem;
-
-  &:hover {
-    background-color: ${({ darkMode }) => (darkMode ? '#6a6e94' : '#737aa7')};
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-`;
-
-const EmojiButton = styled.button`
-  background: none;
-  border: none;
-  font-size: 1.6rem;
-  cursor: pointer;
-  color: ${({ darkMode }) => (darkMode ? '#ddd' : '#222')};
-  padding: 0 0.3rem;
-  height: 40px;
-  display: flex;
-  align-items: center;
-
-  &:hover {
-    color: ${({ darkMode }) => (darkMode ? '#fff' : '#555')};
-  }
-`;
-
-const EmojiPicker = styled.div`
-  position: absolute;
-  bottom: 50px;
-  right: 0;
-  background: ${({ darkMode }) => (darkMode ? '#3a3e54' : 'white')};
-  border: 1px solid ${({ darkMode }) => (darkMode ? '#555' : '#ccc')};
-  border-radius: 8px;
-  padding: 0.5rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  width: 200px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  z-index: 20;
-`;
+import {
+  ChatContainer,
+  Header,
+  ButtonsGroup,
+  ChannelName,
+  EditButton,
+  UpdateForm,
+  Input,
+  CheckboxLabel,
+  MessagesArea,
+  MessageWrapper,
+  UserName,
+  MessageBubble,
+  InputArea,
+  MessageInput,
+  SendButton,
+  EmojiButton,
+  EmojiPicker
+} from './ChatStyles';
 
 export default function Chat({ channelId, workspaceId, darkMode = false }) {
   const [messages, setMessages] = useState([]);
@@ -231,6 +61,21 @@ export default function Chat({ channelId, workspaceId, darkMode = false }) {
       });
   }, [channelId, workspaceId, token]);
 
+  // Fonction pour vérifier si le channel est épinglé
+  const checkIfChannelIsPinned = async () => {
+    try {
+      const response = await axios.get(`http://127.0.0.1:8000/channels/channels/pinned?workspace_id=${workspaceId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      const pinnedChannels = response.data;
+      const isCurrentChannelPinned = pinnedChannels.some(channel => channel.id === channelId);
+      setIsPinned(isCurrentChannelPinned);
+    } catch (error) {
+      console.error('Erreur lors de la vérification du statut épinglé:', error);
+    }
+  };
+
   useEffect(() => {
     if (!channelId || !token) return;
     axios.get(`http://127.0.0.1:8000/channels/${channelId}`, {
@@ -240,13 +85,16 @@ export default function Chat({ channelId, workspaceId, darkMode = false }) {
       setEditName(channel.name || '');
       setEditDescription(channel.description || '');
       setEditIsPrivate(channel.is_private || false);
-      setIsPinned(channel.is_pinned || false);
     }).catch(() => {
       setEditDescription('');
       setEditIsPrivate(false);
-      setIsPinned(false);
     });
-  }, [channelId, token]);
+
+    // Vérifier si le channel est épinglé
+    if (workspaceId) {
+      checkIfChannelIsPinned();
+    }
+  }, [channelId, token, workspaceId]);
 
   useEffect(() => {
     if (!channelId || !token) return;
@@ -308,21 +156,47 @@ export default function Chat({ channelId, workspaceId, darkMode = false }) {
     }
   };
 
+  // Fonction pour gérer le pin/unpin
+  const handlePinToggle = async (shouldPin) => {
+    try {
+      if (shouldPin) {
+        // Épingler le channel
+        await axios.post(`http://127.0.0.1:8000/channels/${channelId}/pin`, {}, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } else {
+        // Désépingler le channel
+        await axios.delete(`http://127.0.0.1:8000/channels/${channelId}/unpin`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
+    } catch (error) {
+      console.error('Erreur lors du pin/unpin:', error);
+      throw error; // Re-lancer l'erreur pour la gestion dans handleEditSubmit
+    }
+  };
+
   const handleEditSubmit = async e => {
     e.preventDefault();
     try {
+      // D'abord, mettre à jour les informations de base du channel
       await axios.patch(`http://127.0.0.1:8000/channels/${channelId}`, {
         name: editName,
         description: editDescription,
         is_private: editIsPrivate,
-        is_pinned: isPinned,
+        // Ne pas inclure is_pinned ici
       }, {
         headers: { Authorization: `Bearer ${token}` },
       });
+
+      // Ensuite, gérer le pin/unpin séparément
+      await handlePinToggle(isPinned);
+      
       setChannelName(editName);
       setIsEditing(false);
     } catch (error) {
       console.error(error);
+      alert('Erreur lors de la mise à jour du channel');
     }
   };
 
