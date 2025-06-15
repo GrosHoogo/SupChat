@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import GlobalStyle from './styles/GlobalStyle';
+import { ThemeProvider } from './contexts/ThemeContext'; // import du ThemeProvider
 
 function PrivateRoute({ children }) {
   const token = useSelector(state => state.auth.token);
@@ -13,7 +14,7 @@ function PrivateRoute({ children }) {
 
 export default function App() {
   return (
-    <>
+    <ThemeProvider> {/* On englobe toute l'app dans le ThemeProvider */}
       <GlobalStyle />
       <BrowserRouter>
         <Routes>
@@ -23,6 +24,6 @@ export default function App() {
           <Route path="/" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
         </Routes>
       </BrowserRouter>
-    </>
+    </ThemeProvider>
   );
 }

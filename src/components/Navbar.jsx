@@ -54,7 +54,10 @@ const RightGroup = styled.div`
 `;
 
 const NavButton = styled.button`
-  background: ${({ darkMode }) => (darkMode ? '#575a7c' : '#5a5e80')};
+  background: ${({ darkMode, special }) =>
+    special
+      ? (darkMode ? '#7CA1FF' : '#AFCBFF')   /* couleur plus claire spéciale Paramètres */
+      : (darkMode ? '#575a7c' : '#5a5e80')};
   border: none;
   border-radius: 8px;
   padding: 0.6rem 1.2rem;
@@ -63,7 +66,10 @@ const NavButton = styled.button`
   cursor: pointer;
   transition: background 0.3s;
   &:hover {
-    background: ${({ darkMode }) => (darkMode ? '#6a6e94' : '#737aa7')};
+    background: ${({ darkMode, special }) =>
+      special
+        ? (darkMode ? '#8BAEFF' : '#C3DEFF')
+        : (darkMode ? '#6a6e94' : '#737aa7')};
   }
 `;
 
@@ -71,6 +77,13 @@ export default function Navbar({ darkMode, onOpenSettings, onOpenProfile, onSear
   const [searchTerm, setSearchTerm] = useState('');
   const dispatch = useDispatch();
   const navigate = useNavigate();
+
+  // Solution rapide pour "forcer" que le bouton Paramètres fonctionne à chaque clic
+  function handleOpenSettings() {
+    if (!onOpenSettings) return;
+    onOpenSettings();      // appel normal
+    setTimeout(() => onOpenSettings(), 10);  // rappel rapide pour forcer "rafraîchir" si besoin
+  }
 
   function handleSearchChange(e) {
     setSearchTerm(e.target.value);
@@ -99,9 +112,15 @@ export default function Navbar({ darkMode, onOpenSettings, onOpenProfile, onSear
       </CenterGroup>
 
       <RightGroup>
-        <NavButton darkMode={darkMode} onClick={onOpenSettings}>⚙️ Paramètres</NavButton>
-        <NavButton darkMode={darkMode} onClick={onOpenProfile}>👤 Profil</NavButton>
-        <NavButton darkMode={darkMode} onClick={handleLogout}>Déconnexion</NavButton>
+        <NavButton darkMode={darkMode} special onClick={handleOpenSettings}>
+          ⚙️ Paramètres
+        </NavButton>
+        <NavButton darkMode={darkMode} onClick={onOpenProfile}>
+          👤 Profil
+        </NavButton>
+        <NavButton darkMode={darkMode} onClick={handleLogout}>
+          Déconnexion
+        </NavButton>
       </RightGroup>
     </NavbarContainer>
   );

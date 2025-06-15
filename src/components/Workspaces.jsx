@@ -12,6 +12,8 @@ import {
   FaLock
 } from 'react-icons/fa';
 
+import { useTheme } from '../contexts/ThemeContext'; // <-- import du contexte
+
 export default function Workspaces({
   workspaces,
   selectedWorkspaceId,
@@ -24,9 +26,10 @@ export default function Workspaces({
   onInfo,
   onLeave,
   onEdit,
-  onCreateChannel,
-  darkMode
+  onCreateChannel
 }) {
+  const { darkMode } = useTheme(); // <-- on récupère darkMode depuis le contexte
+
   const [pinnedChannelsByWorkspace, setPinnedChannelsByWorkspace] = useState({});
   const [searchTerms, setSearchTerms] = useState({});
   const [searchResults, setSearchResults] = useState({});
@@ -290,7 +293,7 @@ export default function Workspaces({
 
 const Container = styled.div`
   width: 280px;
-  background-color: ${props => (props.darkMode ? '#222' : '#f4f4f4')};
+  background-color: ${props => (props.darkMode ? '#42465d' : '#f4f4f4')};
   color: ${props => (props.darkMode ? '#eee' : '#333')};
   border-right: 1px solid #ccc;
   padding: 1rem;
@@ -390,56 +393,55 @@ const AddWorkspaceButton = styled(AddChannelButton)`
   }
 `;
 
-const PinnedHeader = styled.div`
-  margin-left: 1rem;
-  margin-top: 0.6rem;
-  font-weight: bold;
-  color: ${props => (props.darkMode ? '#ccc' : '#555')};
-`;
-
-const PinnedList = styled.ul`
-  list-style: none;
-  margin: 0.2rem 0 0.3rem 1rem;
-  padding: 0;
-  max-height: 100px;
-  overflow-y: auto;
-`;
-
-const PinnedItem = styled(ChannelItem)`
-  background-color: ${props => (props.selected ? '#bbb' : '#eee')};
-  color: ${props => (props.selected ? '#000' : '#333')};
-
-  &:hover {
-    background-color: #ccc;
-  }
-`;
-
-// Styles spécifiques pour workspaces publics
 const SectionTitle = styled.h3`
   margin-top: 2rem;
   margin-bottom: 0.5rem;
 `;
 
 const PublicWorkspaceItem = styled.div`
+  padding: 0.4rem 0.8rem;
+  margin: 0.2rem 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
   background-color: ${props => (props.darkMode ? '#333' : '#eee')};
-  padding: 0.5rem 1rem;
-  margin: 0.3rem 0;
   border-radius: 4px;
 `;
 
 const JoinButton = styled.button`
-  background-color: ${props => (props.joined ? '#28a745' : '#007bff')};
+  background-color: ${props => (props.joined ? '#6c757d' : '#007bff')};
   border: none;
+  padding: 0.3rem 0.8rem;
   color: white;
   border-radius: 4px;
-  padding: 0.3rem 0.6rem;
-  cursor: ${props => (props.joined ? 'default' : 'pointer')};
-  font-size: 0.9rem;
+  cursor: pointer;
 
   &:hover {
-    background-color: ${props => (props.joined ? '#218838' : '#0069d9')};
+    background-color: ${props => (props.joined ? '#5a6268' : '#0056b3')};
   }
+`;
+
+const PinnedHeader = styled.div`
+  font-weight: bold;
+  margin: 0.5rem 0 0.3rem 1rem;
+  color: ${props => (props.darkMode ? '#ddd' : '#444')};
+`;
+
+const PinnedList = styled.ul`
+  list-style: none;
+  padding-left: 1rem;
+  margin: 0;
+`;
+
+const PinnedItem = styled.li`
+  cursor: pointer;
+  padding: 0.3rem 0.6rem;
+  border-radius: 3px;
+  background-color: ${props => (props.selected ? '#bbb' : 'transparent')};
+  &:hover {
+    background-color: #aaa;
+  }
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
 `;

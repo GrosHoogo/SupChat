@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const ModalBackdrop = styled.div`
   position: fixed;
@@ -20,17 +21,16 @@ const ModalContent = styled.div`
 `;
 
 export default function SettingsModal() {
-  // Simuler des données utilisateur
+  const { darkMode, setDarkMode } = useTheme();
+
   const personalData = {
     username: 'JeanDupont',
     email: 'jean.dupont@example.com',
     created_at: '2023-01-15',
   };
 
-  // Etats internes
-  const [darkMode, setDarkMode] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [status, setStatus] = useState('en ligne'); // en ligne, occupé, hors ligne
+  const [status, setStatus] = useState('en ligne');
   const [modalOpen, setModalOpen] = useState(true);
 
   function handleExportData() {
@@ -55,7 +55,8 @@ export default function SettingsModal() {
 
   return (
     <ModalBackdrop onClick={() => setModalOpen(false)}>
-      <ModalContent darkMode={darkMode} onClick={e => e.stopPropagation()}>
+      {/* Forcer darkMode à false pour garder la popup en mode clair */}
+      <ModalContent darkMode={false} onClick={e => e.stopPropagation()}>
         <h2>Paramètres</h2>
 
         <label>
