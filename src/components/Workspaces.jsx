@@ -30,6 +30,11 @@ export default function Workspaces({
   const [pinnedChannelsByWorkspace, setPinnedChannelsByWorkspace] = useState({});
   const [searchTerms, setSearchTerms] = useState({});
   const [searchResults, setSearchResults] = useState({});
+
+  const [publicWorkspaces, setPublicWorkspaces] = useState([]);
+  const [loadingPublicWorkspaces, setLoadingPublicWorkspaces] = useState(false);
+  const [errorPublicWorkspaces, setErrorPublicWorkspaces] = useState(null);
+
   const token = localStorage.getItem('token');
 
   useEffect(() => {
@@ -39,6 +44,26 @@ export default function Workspaces({
       }
     });
   }, [expandedWorkspaces]);
+
+  useEffect(() => {
+    if (!token) return;
+
+    setLoadingPublicWorkspaces(true);
+    axios.get('http://127.0.0.1:8000/workspaces/public', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(res => {
+        setPublicWorkspaces(res.data);
+        setErrorPublicWorkspaces(null);
+      })
+      .catch(err => {
+        console.error("Erreur chargement workspaces publics:", err);
+        setErrorPublicWorkspaces("Impossible de charger les workspaces publics");
+      })
+      .finally(() => {
+        setLoadingPublicWorkspaces(false);
+      });
+  }, [token]);
 
   function fetchPinnedChannels(workspaceId) {
     if (!token) return;
@@ -79,6 +104,22 @@ export default function Workspaces({
       .catch(err => {
         console.error(`Erreur recherche canaux pour ${workspaceId}:`, err);
         setSearchResults(prev => ({ ...prev, [workspaceId]: [] }));
+      });
+  }
+
+  function handleJoinWorkspace(workspaceId) {
+    if (!token) return;
+
+    axios.post(`http://127.0.0.1:8000/workspaces/${workspaceId}/join`, {}, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(() => {
+        alert("Rejoint le workspace avec succès !");
+        // Optionnel : déclencher mise à jour des workspaces privés ou rechargement
+      })
+      .catch(err => {
+        console.error("Erreur rejoindre workspace:", err);
+        alert("Erreur lors de la tentative de rejoindre ce workspace.");
       });
   }
 
@@ -182,7 +223,7 @@ export default function Workspaces({
                 {/* Channels épinglés */}
                 {pinnedChannels.length > 0 && (
                   <>
-                    <PinnedHeader>Channels épinglés</PinnedHeader>
+                    <PinnedHeader darkMode={darkMode}>Channels épinglés</PinnedHeader>
                     <PinnedList>
                       {pinnedChannels.map(channel => (
                         <PinnedItem
@@ -210,6 +251,37 @@ export default function Workspaces({
       <AddWorkspaceButton onClick={onCreateWorkspace}>
         <FaPlus /> Nouveau workspace
       </AddWorkspaceButton>
+
+      {/* Section Workspaces publics */}
+      <SectionTitle>Workspaces publics</SectionTitle>
+
+      {loadingPublicWorkspaces && <p>Chargement des workspaces publics...</p>}
+      {errorPublicWorkspaces && <p style={{ color: 'red' }}>{errorPublicWorkspaces}</p>}
+
+      {publicWorkspaces.length === 0 && !loadingPublicWorkspaces && (
+        <p>Aucun workspace public disponible.</p>
+      )}
+
+      {publicWorkspaces.map(ws => {
+        const isJoined = workspaces.some(joinedWs => joinedWs.id === ws.id);
+        return (
+          <PublicWorkspaceItem key={ws.id} darkMode={darkMode}>
+            <div>
+              <strong>{ws.name}</strong><br />
+              <small>{ws.description || 'Pas de description'}</small>
+            </div>
+            <JoinButton
+              joined={isJoined}
+              onClick={() => {
+                if (!isJoined) handleJoinWorkspace(ws.id);
+              }}
+            >
+              {isJoined ? "Rejoins" : "Rejoindre"}
+            </JoinButton>
+          </PublicWorkspaceItem>
+        );
+      })}
+
     </Container>
   );
 }
@@ -339,5 +411,35 @@ const PinnedItem = styled(ChannelItem)`
 
   &:hover {
     background-color: #ccc;
+  }
+`;
+
+// Styles spécifiques pour workspaces publics
+const SectionTitle = styled.h3`
+  margin-top: 2rem;
+  margin-bottom: 0.5rem;
+`;
+
+const PublicWorkspaceItem = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: ${props => (props.darkMode ? '#333' : '#eee')};
+  padding: 0.5rem 1rem;
+  margin: 0.3rem 0;
+  border-radius: 4px;
+`;
+
+const JoinButton = styled.button`
+  background-color: ${props => (props.joined ? '#28a745' : '#007bff')};
+  border: none;
+  color: white;
+  border-radius: 4px;
+  padding: 0.3rem 0.6rem;
+  cursor: ${props => (props.joined ? 'default' : 'pointer')};
+  font-size: 0.9rem;
+
+  &:hover {
+    background-color: ${props => (props.joined ? '#218838' : '#0069d9')};
   }
 `;
