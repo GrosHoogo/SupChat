@@ -15,7 +15,7 @@ const Container = styled.div`
 `;
 
 const Input = styled.input`
-  width: 100%;
+  width: 95%;
   margin-bottom: 1rem;
   padding: 0.5rem;
   border: 1px solid var(--border-color, #ccc);
