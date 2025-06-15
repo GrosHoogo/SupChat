@@ -384,7 +384,7 @@ const AddChannelButton = styled.button`
 `;
 
 const AddWorkspaceButton = styled(AddChannelButton)`
-  width: 100%;
+  width: 90%;
   margin-top: 1rem;
   background-color: #007bff;
 
